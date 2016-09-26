@@ -64,8 +64,7 @@ class Microgear extends events {
     this.options = {};
     this.toktime = MINTOKDELAYTIME;
     this.microgearcache = `microgear-${this.gearkey}.cache`;
-
-    this.httpclient = null;
+    this.httpclient = this.securemode ? https : http;
     this.cache = {
       getItem: (key) => {
         try {
@@ -185,12 +184,6 @@ class Microgear extends events {
    * @param  {Function} callback Callback
    */
   gettoken(callback) {
-    if (this.securemode) {
-      this.httpclient = https;
-    } else {
-      this.httpclient = http;
-    }
-
     if (this.debugmode) {
       console.log('Check stored token');
     }
@@ -230,12 +223,6 @@ class Microgear extends events {
             port: GEARAPIPORT,
             method: 'GET',
           };
-        }
-
-        if (this.securemode) {
-          this.httpclient = https;
-        } else {
-          this.httpclient = http;
         }
 
         const rq = this.httpclient.request(opt, (res) => {
@@ -797,14 +784,6 @@ class Microgear extends events {
    * @param  {Function} callback Callabck
    */
   resetToken(callback) {
-    let httpclient;
-
-    if (this.securemode) {
-      httpclient = https;
-    } else {
-      httpclient = http;
-    }
-
     this.accesstoken = this.getGearCacheValue('accesstoken');
     if (this.accesstoken) {
       let opt;
@@ -826,7 +805,7 @@ class Microgear extends events {
         };
       }
 
-      const rq = httpclient.request(opt, (res) => {
+      const rq = this.httpclient.request(opt, (res) => {
         let result = '';
         res.on('data', (chunk) => {
           result += chunk;
