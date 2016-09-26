@@ -1,7 +1,3 @@
-/**
- * NetPIE microgear Library for Node.js
- * http://netpie.io
-*/
 import OAuth from 'oauth';
 import crypto from 'crypto';
 import events from 'events';
@@ -782,7 +778,8 @@ class Microgear extends events {
   }
 
   /**
-   * call api request to record stream data, this method is available only for api tester at the moment
+   * call api request to record stream data,
+   * this method is available only for api tester at the moment
    * @param  {String}   stream The name of stream
    * @param  {String}   data  Stream data
    */
