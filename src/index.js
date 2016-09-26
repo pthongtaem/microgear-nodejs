@@ -91,6 +91,10 @@ class Microgear extends events {
     };
 
     process.on('uncaughtException', (err) => {
+      if (this.debugmode) {
+        throw new Error(err);
+      }
+
       this.emit(err);
     });
 
@@ -181,8 +185,6 @@ class Microgear extends events {
    * @param  {Function} callback Callback
    */
   gettoken(callback) {
-    const self = this;
-
     if (this.securemode) {
       this.httpclient = https;
     } else {
@@ -196,8 +198,8 @@ class Microgear extends events {
     const cachekey = this.getGearCacheValue('key');
 
     if (cachekey && cachekey !== this.gearkey) {
-      self.resetToken();
-      self.clearGearCache();
+      this.resetToken();
+      this.clearGearCache();
     }
     this.setGearCacheValue('key', this.gearkey);
     if (!this.accesstoken) {
@@ -243,8 +245,8 @@ class Microgear extends events {
           });
           res.on('end', () => {
             if (buff) {
-              self.accesstoken.endpoint = buff;
-              self.setGearCacheValue('accesstoken', self.accesstoken);
+              this.accesstoken.endpoint = buff;
+              this.setGearCacheValue('accesstoken', this.accesstoken);
               if (typeof callback === 'function') {
                 callback(3);
               }
@@ -268,7 +270,7 @@ class Microgear extends events {
       if (this.requesttoken) {
         /* send requesttoken to obtain accesstoken*/
 
-        if (self.debugmode) {
+        if (this.debugmode) {
           console.log('already has request token');
           console.dir(this.requesttoken);
           console.log('Requesting an access token.');
@@ -293,10 +295,10 @@ class Microgear extends events {
         this.requesttoken.verifier,
         (err, oauthToken, oauthTokenSecret, results) => {
           if (!err) {
-            const hkey = `${oauthTokenSecret}&${self.gearsecret}`;
+            const hkey = `${oauthTokenSecret}&${this.gearsecret}`;
             const revokecode = crypto.createHmac('sha1', hkey).update(oauthToken).digest('base64').replace(/\//g, '_');
 
-            self.accesstoken = {
+            this.accesstoken = {
               token: oauthToken,
               secret: oauthTokenSecret,
               appkey: results.appkey,
@@ -305,10 +307,10 @@ class Microgear extends events {
             };
 
             if (results.flag !== 'S') {
-              self.setGearCacheValue('accesstoken', self.accesstoken);
-              self.setGearCacheValue('requesttoken', null);
+              this.setGearCacheValue('accesstoken', this.accesstoken);
+              this.setGearCacheValue('requesttoken', null);
             } else {
-              self.clearGearCache();
+              this.clearGearCache();
             }
             if (typeof callback === 'function') {
               callback(2);
@@ -322,7 +324,7 @@ class Microgear extends events {
                 break;
               case 500:   // eg. 500 request token not found
               default :
-                self.emit('rejected', 'Request token rejected');
+                this.emit('rejected', 'Request token rejected');
                 if (typeof callback === 'function') {
                   callback(1);
                 }
@@ -331,7 +333,7 @@ class Microgear extends events {
           }
         });
       } else {
-        if (self.debugmode) {
+        if (this.debugmode) {
           console.log('Requesting a request token.');
         }
 
@@ -359,12 +361,12 @@ class Microgear extends events {
 
         oauth.getOAuthRequestToken({}, (err, oauthToken, oauthTokenSecret, results) => {
           if (!err) {
-            self.requesttoken = {
+            this.requesttoken = {
               token: oauthToken,
               secret: oauthTokenSecret,
               verifier,
             };
-            self.setGearCacheValue('requesttoken', self.requesttoken);
+            this.setGearCacheValue('requesttoken', this.requesttoken);
             if (typeof callback === 'function') {
               callback(1);
             }
@@ -381,16 +383,14 @@ class Microgear extends events {
    * @param  {Function} callback Callback
    */
   brokerConnect(callback) {
-    const self = this;
-
     const hkey = `${this.accesstoken.secret}&${this.gearsecret}`;
     const mqttuser = `${this.gearkey}%${Math.floor(Date.now() / 1000)}`;
     const mqttpassword = crypto.createHmac('sha1', hkey).update(`${this.accesstoken.token}%${mqttuser}`).digest('base64');
     const mqttclientid = this.accesstoken.token;
 
     if (this.debugmode) {
-      console.log('mqttuser     : ' + mqttuser);
-      console.log('mqttpassword : ' + mqttpassword);
+      console.log('mqttuser: ' + mqttuser);
+      console.log('mqttpassword: ' + mqttpassword);
     }
 
     this.clientid = mqttclientid;
@@ -440,28 +440,28 @@ class Microgear extends events {
       switch (err.toString()) {
         case 'Error: Connection refused: Bad username or password' : // code 4
           // token may be nolonger valid, try to request a new one
-          self.emit('info', 'invalid token, requesting a new one');
+          this.emit('info', 'invalid token, requesting a new one');
 
-          self.clearGearCache();
-          self.requesttoken = null;
-          self.accesstoken = null;
+          this.clearGearCache();
+          this.requesttoken = null;
+          this.accesstoken = null;
 
-          self.client.end();
+          this.client.end();
           setTimeout(() => {
-            self.initiateConnection(() => {
-              if (self.debugmode) {
+            this.initiateConnection(() => {
+              if (this.debugmode) {
                 console.log('auto reconnect');
               }
             });
           }, RETRYCONNECTIONINTERVAL);
           break;
         case 'Error: Connection refused: Not authorized' : // code 5
-          self.emit('warning', 'microgear unauthorized');
+          this.emit('warning', 'microgear unauthorized');
 
-          self.client.end();
+          this.client.end();
           setTimeout(() => {
-            self.initiateConnection(() => {
-              if (self.debugmode) {
+            this.initiateConnection(() => {
+              if (this.debugmode) {
                 console.log('auto reconnect');
               }
             });
@@ -471,7 +471,7 @@ class Microgear extends events {
     });
 
     this.client.on('message', (topic, message) => {
-      const plen = self.appid.length + 1;
+      const plen = this.appid.length + 1;
       const rtop = topic.substr(plen, topic.length - plen);
 
       if (rtop.substr(0, 2) === '/&') {
@@ -487,54 +487,54 @@ class Microgear extends events {
             } catch (e) {
               pm = message.toString();
             }
-            self.emit(ctop, pm);
+            this.emit(ctop, pm);
             break;
           }
           case 'resetendpoint' :
-            if (self.accesstoken && self.accesstoken.endpoint) {
-              self.accesstoken.endpoint = '';
-              self.setGearCacheValue('accesstoken', self.accesstoken);
-              self.emit('info', 'endpoint reset');
+            if (this.accesstoken && this.accesstoken.endpoint) {
+              this.accesstoken.endpoint = '';
+              this.setGearCacheValue('accesstoken', this.accesstoken);
+              this.emit('info', 'endpoint reset');
             }
             break;
         }
       } else {
-        self.emit('message', topic, message);
+        this.emit('message', topic, message);
       }
     });
 
     this.client.on('close', () => {
-      if (self.debugmode) {
+      if (this.debugmode) {
         console.log('client close');
       }
-      self.emit('disconnected');
+      this.emit('disconnected');
     });
 
     this.client.on('connect', (pack) => {
-      for (let i = 0; i < self.subscriptions.length; i += 1) {
-        if (self.debugmode) {
-          console.log(`auto subscribe ${self.subscriptions[i]}`);
+      for (let i = 0; i < this.subscriptions.length; i += 1) {
+        if (this.debugmode) {
+          console.log(`auto subscribe ${this.subscriptions[i]}`);
         }
-        self.client.subscribe(self.subscriptions[i]);
+        this.client.subscribe(this.subscriptions[i]);
       }
 
-      if (self.listeners('present')) {
-        self.client.subscribe(`/${self.appid}/&present`);
+      if (this.listeners('present')) {
+        this.client.subscribe(`/${this.appid}/&present`);
       }
-      if (self.listeners('absent')) {
-        self.client.subscribe(`/${self.appid}/&absent`);
-      }
-
-      if (self.gearalias) {
-        self.setalias(self.gearalias);
+      if (this.listeners('absent')) {
+        this.client.subscribe(`/${this.appid}/&absent`);
       }
 
-      self.emit('connected');
+      if (this.gearalias) {
+        this.setalias(this.gearalias);
+      }
+
+      this.emit('connected');
     });
 
     this.client.on('end', () => {
-      self.emit('pieclosed');
-      self.emit('closed');
+      this.emit('pieclosed');
+      this.emit('closed');
     });
   }
 
@@ -543,8 +543,6 @@ class Microgear extends events {
    * @param  {object} callback function
    */
   initiateConnection(done) {
-    const self = this;
-
     this.gettoken((state) => {
       switch (state) {
         case 0 :    // No token issue
@@ -552,23 +550,20 @@ class Microgear extends events {
           // throw new Error('Error: request token is not issued, please check your key and secret.');
           return;
         case 1 :    // Request token issued or prepare to request request token again
-          console.log(self.toktime);
           setTimeout(() => {
-            if (self.toktime < MAXTOKDELAYTIME) {
-              self.toktime *= 2;
+            if (this.toktime < MAXTOKDELAYTIME) {
+              this.toktime *= 2;
             }
-            console.log('do timeout');
-            console.log(self.toktime);
-            self.initiateConnection(done);
-          }, self.toktime);
+            this.initiateConnection(done);
+          }, this.toktime);
           return;
         case 2 :    // Access token issued
-          self.initiateConnection(done);
-          self.toktime = 1;
+          this.initiateConnection(done);
+          this.toktime = 1;
           return;
         case 3 :    // Has access token ready for connecting broker
-          self.toktime = 1;
-          self.brokerConnect(() => {
+          this.toktime = 1;
+          this.brokerConnect(() => {
             if (typeof done === 'function') {
               done();
             }
@@ -636,13 +631,11 @@ class Microgear extends events {
    * @param  {Function} callback Callback
    */
   subscribe(topic, callback) {
-    const self = this;
-
     if (this.client.connected) {
       this.client.subscribe(`/${this.appid}${topic}`, (err, granted) => {
         if (granted && granted[0]) {
-          if (self.subscriptions.indexOf(`/${self.appid}${topic}`)) {
-            self.subscriptions.push(`/${self.appid}${topic}`);
+          if (this.subscriptions.indexOf(`/${this.appid}${topic}`)) {
+            this.subscriptions.push(`/${this.appid}${topic}`);
           }
         }
         if (typeof callback === 'function') {
@@ -657,7 +650,7 @@ class Microgear extends events {
         }
       });
     } else {
-      self.emit('error', 'microgear is disconnected, cannot subscribe.');
+      this.emit('error', 'microgear is disconnected, cannot subscribe.');
     }
   }
 
@@ -667,17 +660,15 @@ class Microgear extends events {
    * @param  {Function} callback Callback
    */
   unsubscribe(topic, callback) {
-    const self = this;
-
     if (this.debugmode) {
-      console.log(this.subscriptions.indexOf(`/${self.appid}${topic}`));
+      console.log(this.subscriptions.indexOf(`/${this.appid}${topic}`));
       console.log(this.subscriptions);
     }
 
     this.client.unsubscribe(`/${this.appid}${topic}`, () => {
-      self.subscriptions.splice(self.subscriptions.indexOf(`/${self.appid}${topic}`));
-      if (self.debugmode) {
-        console.log(self.subscriptions);
+      this.subscriptions.splice(this.subscriptions.indexOf(`/${this.appid}${topic}`));
+      if (this.debugmode) {
+        console.log(this.subscriptions);
       }
       if (typeof callback === 'function') {
         callback();
@@ -692,11 +683,9 @@ class Microgear extends events {
    * @param  {Function} callback Callback
    */
   setName(gearname, callback) {
-    const self = this;
-
     if (this.gearname) this.unsubscribe(`/gearname/${this.gearname}`);
     this.subscribe(`/gearname/${gearname}`, () => {
-      self.gearname = gearname;
+      this.gearname = gearname;
       if (typeof callback === 'function') {
         callback();
       }
@@ -709,10 +698,8 @@ class Microgear extends events {
    * @param  {Function} callback Callback
    */
   setAlias(newalias, callback) {
-    const self = this;
-
     this.publish(`/@setalias/${newalias}`, '', {}, () => {
-      self.gearalias = newalias;
+      this.gearalias = newalias;
       if (typeof callback === 'function') {
         callback();
       }
@@ -724,10 +711,9 @@ class Microgear extends events {
    * @param  {Function} callback Callback
    */
   unsetName(callback) {
-    const self = this;
     if (this.gearname != null) {
       this.unsubscribe(`/gearname/${this.gearname}`, () => {
-        self.gearname = null;
+        this.gearname = null;
         if (typeof callback === 'function') {
           callback();
         }
@@ -742,7 +728,6 @@ class Microgear extends events {
    * @param  {Object} param Publish Parameters
    */
   publish(topic, message, param, callback) {
-    const self = this;
     let options;
 
     switch (typeof param) {
@@ -758,7 +743,7 @@ class Microgear extends events {
     if (this.client.connected) {
       this.client.publish(`/${this.appid}${topic}`, message, options, callback);
     } else {
-      self.emit('error', 'microgear is disconnected, cannot publish.');
+      this.emit('error', 'microgear is disconnected, cannot publish.');
     }
   }
 
@@ -813,7 +798,6 @@ class Microgear extends events {
    */
   resetToken(callback) {
     let httpclient;
-    const self = this;
 
     if (this.securemode) {
       httpclient = https;
@@ -849,7 +833,7 @@ class Microgear extends events {
         });
         res.on('end', () => {
           if (result !== 'FAILED') {
-            self.clearGearCache();
+            this.clearGearCache();
             if (typeof callback === 'function') {
               callback(null);
             }
@@ -859,7 +843,7 @@ class Microgear extends events {
         });
       });
       rq.on('error', (e) => {
-        self.emit('error', `Reset token error : ${e.message}`);
+        this.emit('error', `Reset token error : ${e.message}`);
         if (typeof callback === 'function') {
           callback(e.message);
         }
