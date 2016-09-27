@@ -39,7 +39,6 @@ while (topModule.parent) {
   topModule = topModule.parent;
 }
 const appdir = path.dirname(topModule.filename);
-const ps = { p: 'online', a: 'offline', n: 'aliased', u: 'unaliased' };
 
 class Microgear extends events {
   constructor(param) {
@@ -91,10 +90,10 @@ class Microgear extends events {
 
     process.on('uncaughtException', (err) => {
       if (this.debugmode) {
-        throw new Error(err);
+        console.log(err);
       }
 
-      this.emit(err);
+      this.emit('error', err.toString());
     });
 
     this.on('newListener', (event, listener) => {
