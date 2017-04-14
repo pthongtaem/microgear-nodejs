@@ -2,15 +2,16 @@
 
 var MicroGear = require('../../lib');
 
-const KEY = 'HCyMHOuFzqGyMyu';
-const SECRET = 'kxdEfJfJyBoSpTtbME8UhrJJX';
-const APPID = 'dontest';
+const KEY = '';
+const SECRET = '';
+const APPID = '';
+const ALIAS = '';
 
 var microgear = new MicroGear.default({
   key: KEY,
   secret: SECRET,
   appid: APPID,
-  alias: 'aaaaa',
+  alias: ALIAS,
 });
 
 microgear.on('connected', function () {
