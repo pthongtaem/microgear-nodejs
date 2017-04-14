@@ -235,8 +235,8 @@ class Microgear extends events {
           });
           res.on('end', () => {
             if (buff) {
-              self.accesstoken.endpoint = buff;
-              self.setGearCacheValue('accesstoken', self.accesstoken);
+              this.accesstoken.endpoint = buff;
+              this.setGearCacheValue('accesstoken', this.accesstoken);
               if (typeof (callback) == 'function') {
                 callback(3);
               }
@@ -261,7 +261,7 @@ class Microgear extends events {
       if (this.requesttoken) {
         /* send requesttoken to obtain accesstoken*/
 
-        if (self.debugmode) {
+        if (this.debugmode) {
           console.log('already has request token');
           console.dir(this.requesttoken);
           console.log('Requesting an access token.');
@@ -302,7 +302,7 @@ class Microgear extends events {
                 break;
               case 500:   // eg. 500 request token not found
               default:
-                self.emit('rejected', 'Request token rejected');
+                this.emit('rejected', 'Request token rejected');
                 if (typeof (callback) == 'function') callback(1);
                 break;
             }
@@ -418,7 +418,7 @@ class Microgear extends events {
           this.client.end();
           setTimeout(function () {
             this.initiateConnection(() => {
-              if (self.debugmode) console.log('auto reconnect');
+              if (this.debugmode) console.log('auto reconnect');
             });
           }, RETRYCONNECTIONINTERVAL);
           break;
@@ -524,7 +524,7 @@ class Microgear extends events {
           return;
         case 1:    // Request token issued or prepare to request request token again
           setTimeout(() => {
-            if (this.toktime < MAXTOKDELAYTIME) self.toktime *= 2;
+            if (this.toktime < MAXTOKDELAYTIME) this.toktime *= 2;
             this.initiateConnection(done);
           }, this.toktime);
           return;
@@ -654,7 +654,7 @@ class Microgear extends events {
       this.unsubscribe(`/gearname/${this.gearname}`);
     }
     this.subscribe(`/gearname/${this.gearname}`, () => {
-      self.gearname = gearname;
+      this.gearname = gearname;
       if (typeof (callback) == 'function') {
         callback();
       }
