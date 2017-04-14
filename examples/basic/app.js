@@ -1,30 +1,32 @@
 #!/usr/bin/env node
 
-var MicroGear = require('microgear');
+var MicroGear = require('../../lib');
 
-const KEY    = <APPKEY>;
-const SECRET = <APPSECRET>;
-const APPID     = <APPID>;
+const KEY = 'HCyMHOuFzqGyMyu';
+const SECRET = 'kxdEfJfJyBoSpTtbME8UhrJJX';
+const APPID = 'dontest';
 
-var microgear = MicroGear.create({
-    key : KEY,
-    secret : SECRET
+var microgear = new MicroGear.default({
+  key: KEY,
+  secret: SECRET,
+  appid: APPID,
+  alias: 'aaaaa',
 });
 
-microgear.on('connected', function() {
-    console.log('Connected...');
-    microgear.setalias("mygear");
-    setInterval(function() {
-        microgear.chat('mygear', 'Hello world.');
-    },1000);
+microgear.on('connected', function () {
+  console.log('Connected...');
+  microgear.setalias("mygear");
+  setInterval(function () {
+    microgear.chat('mygear', 'Hello world.');
+  }, 1000);
 });
 
-microgear.on('message', function(topic,body) {
-    console.log('incoming : '+topic+' : '+body);
+microgear.on('message', function (topic, body) {
+  console.log('incoming : ' + topic + ' : ' + body);
 });
 
-microgear.on('closed', function() {
-    console.log('Closed...');
+microgear.on('closed', function () {
+  console.log('Closed...');
 });
 
-microgear.connect(APPID);
+microgear.connect();
