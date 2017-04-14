@@ -2,15 +2,16 @@
  * NetPIE microgear Library for Node.js
  * http://netpie.io
 */
+
+import events from 'events';
 import OAuth from 'oauth';
 import crypto from 'crypto';
-import events from 'events';
+import path from 'path';
 import mqtt from 'mqtt';
 import fs from 'fs';
-import http from 'http';
 import https from 'https';
+import http from 'http';
 import url from 'url';
-import path from 'path';
 
 /**
  * General API Endpoint
@@ -38,20 +39,24 @@ let topModule = module;
 while (topModule.parent) {
   topModule = topModule.parent;
 }
+
 const appdir = path.dirname(topModule.filename);
+const ps = { p: 'online', a: 'offline', n: 'aliased', u: 'unaliased' };
 
 class Microgear extends events {
-  constructor(param) {
+  constructor(param = { key: '', secret: '', alias: '', appid: '' }) {
     super();
-
+    const gearkey = param.key || param.gearkey || '';
+    const gearsecret = param.secret || param.gearsecret || '';
     const gearalias = param.alias || param.gearalias || '';
+    const appid = param.appid || param.id || null;
 
     this.securemode = false;
     this.debugmode = DEBUGMODE;
-    this.gearkey = param.key || param.gearkey || '';
-    this.gearsecret = param.secret || param.gearsecret || '';
+    this.gearkey = gearkey;
+    this.gearsecret = gearsecret;
     this.gearalias = gearalias ? gearalias.substring(0, 16) : null;
-    this.appid = null;
+    this.appid = appid;
     this.gearname = null;
     this.accesstoken = null;
     this.requesttoken = null;
@@ -63,49 +68,47 @@ class Microgear extends events {
     this.options = {};
     this.toktime = MINTOKDELAYTIME;
     this.microgearcache = `microgear-${this.gearkey}.cache`;
-    this.httpclient = this.securemode ? https : http;
     this.cache = {
       getItem: (key) => {
         try {
-          const val = fs.readFileSync(`${appdir}/${key}`);
-          if (typeof val !== 'undefined') {
+          let val = fs.readFileSync(`${appdir}/${key}`);
+          if (typeof (val) != 'undefined') {
             let jsonobj;
             try {
               jsonobj = JSON.parse(val);
-            } catch (e) {
+            }
+            catch (e) {
               return null;
             }
             return jsonobj._;
           }
-
-          return null;
-        } catch (e) {
+          else return null;
+        }
+        catch (e) {
           return null;
         }
       },
       setItem: (key, val) => {
         fs.writeFileSync(`${appdir}/${key}`, JSON.stringify({ _: val }));
-      },
+      }
     };
 
     process.on('uncaughtException', (err) => {
       if (this.debugmode) {
-        console.log(err);
+        console.log(err.toString());
       }
-
-      this.emit('error', err.toString());
     });
 
     this.on('newListener', (event, listener) => {
       switch (event) {
-        case 'present' :
+        case 'present':
           if (this.client) {
             if (this.client.connected) {
               this.subscribe('/&present');
             }
           }
           break;
-        case 'absent' :
+        case 'absent':
           if (this.client) {
             if (this.client.connected) {
               this.subscribe('/&absent');
@@ -120,8 +123,8 @@ class Microgear extends events {
    * Override cache file path
    * @param  {string} path cache file path
    */
-  setCachePath(cachePath) {
-    this.microgearcache = cachePath;
+  setCachePath(path) {
+    this.microgearcache = path;
   }
 
   /**
@@ -138,7 +141,7 @@ class Microgear extends events {
    * @return {String}     value
    */
   getGearCacheValue(key) {
-    const c = this.cache.getItem(this.microgearcache);
+    let c = this.cache.getItem(this.microgearcache);
     if (c == null) {
       return null;
     }
@@ -165,7 +168,7 @@ class Microgear extends events {
    * @param {String} key   key name
    */
   clearGearCache(key) {
-    const c = this.cache.getItem(this.microgearcache);
+    let c = this.cache.getItem(this.microgearcache);
     if (c == null) {
       return;
     }
@@ -183,29 +186,30 @@ class Microgear extends events {
    * @param  {Function} callback Callback
    */
   gettoken(callback) {
+    const httpclient = this.securemode ? https : http;
+
     if (this.debugmode) {
       console.log('Check stored token');
     }
 
     const cachekey = this.getGearCacheValue('key');
-
-    if (cachekey && cachekey !== this.gearkey) {
-      this.resetToken();
+    if (cachekey && cachekey != this.gearkey) {
+      this.resettoken();
       this.clearGearCache();
     }
+
     this.setGearCacheValue('key', this.gearkey);
+
     if (!this.accesstoken) {
       this.accesstoken = this.getGearCacheValue('accesstoken');
     }
 
     if (this.accesstoken) {
-      if (this.accesstoken.endpoint !== '') {
+      if (this.accesstoken.endpoint != "") {
         const endpoint = url.parse(this.accesstoken.endpoint);
         this.gearexaddress = endpoint.hostname;
         this.gearexport = endpoint.port;
-        if (typeof callback === 'function') {
-          callback(3);
-        }
+        if (typeof (callback) == 'function') callback(3);
       } else {
         let opt;
         if (this.securemode) {
@@ -213,18 +217,18 @@ class Microgear extends events {
             host: GEARAPIADDRESS,
             path: `/api/endpoint/${this.gearkey}`,
             port: GEARAPISECUREPORT,
-            method: 'GET',
+            method: 'GET'
           };
-        } else {
+        }
+        else {
           opt = {
             host: GEARAPIADDRESS,
             path: `/api/endpoint/${this.gearkey}`,
             port: GEARAPIPORT,
-            method: 'GET',
+            method: 'GET'
           };
         }
-
-        const rq = this.httpclient.request(opt, (res) => {
+        const rq = httpclient.request(opt, (res) => {
           let buff = '';
           res.on('data', (chunk) => {
             buff += chunk;
@@ -233,17 +237,17 @@ class Microgear extends events {
             if (buff) {
               this.accesstoken.endpoint = buff;
               this.setGearCacheValue('accesstoken', this.accesstoken);
-              if (typeof callback === 'function') {
+              if (typeof (callback) == 'function') {
                 callback(3);
               }
             }
-            if (typeof callback === 'function') {
+            if (typeof (callback) == 'function') {
               callback(2);
             }
           });
         });
-        rq.on('error', (e) => {
-          if (typeof callback === 'function') {
+        rq.on('error', function (e) {
+          if (typeof (callback) == 'function') {
             callback(2);
           }
         });
@@ -253,6 +257,7 @@ class Microgear extends events {
       if (!this.requesttoken) {
         this.requesttoken = this.getGearCacheValue('requesttoken');
       }
+
       if (this.requesttoken) {
         /* send requesttoken to obtain accesstoken*/
 
@@ -272,65 +277,47 @@ class Microgear extends events {
           this.gearsecret,
           '1.0',
           '',
-          'HMAC-SHA1',
+          'HMAC-SHA1'
         );
 
-        oauth.getOAuthAccessToken(
-        this.requesttoken.token,
-        this.requesttoken.secret,
-        this.requesttoken.verifier,
-        (err, oauthToken, oauthTokenSecret, results) => {
+        oauth.getOAuthAccessToken(this.requesttoken.token, this.requesttoken.secret, this.requesttoken.verifier, (err, oauth_token, oauth_token_secret, results) => {
           if (!err) {
-            const hkey = `${oauthTokenSecret}&${this.gearsecret}`;
-            const revokecode = crypto.createHmac('sha1', hkey).update(oauthToken).digest('base64').replace(/\//g, '_');
-
-            this.accesstoken = {
-              token: oauthToken,
-              secret: oauthTokenSecret,
-              appkey: results.appkey,
-              endpoint: results.endpoint,
-              revokecode,
-            };
-
-            if (results.flag !== 'S') {
+            const hkey = `${oauth_token_secret}&${this.gearsecret}`;
+            const revokecode = crypto.createHmac('sha1', hkey).update(oauth_token).digest('base64').replace(/\//g, '_');
+            this.accesstoken = { token: oauth_token, secret: oauth_token_secret, appkey: results.appkey, endpoint: results.endpoint, revokecode: revokecode };
+            if (results.flag != 'S') {
               this.setGearCacheValue('accesstoken', this.accesstoken);
               this.setGearCacheValue('requesttoken', null);
-            } else {
+            }
+            else {
               this.clearGearCache();
             }
-            if (typeof callback === 'function') {
+            if (typeof (callback) == 'function') {
               callback(2);
             }
           } else {
             switch (err.statusCode) {
               case 401:   // not authorized yet
-                if (typeof callback === 'function') {
-                  callback(1);
-                }
+                if (typeof (callback) == 'function') callback(1);
                 break;
               case 500:   // eg. 500 request token not found
-              default :
+              default:
                 this.emit('rejected', 'Request token rejected');
-                if (typeof callback === 'function') {
-                  callback(1);
-                }
+                if (typeof (callback) == 'function') callback(1);
                 break;
             }
           }
         });
       } else {
         if (this.debugmode) {
-          console.log('Requesting a request token.');
+          console.log("Requesting a request token.");
         }
 
-        let verifier;
-        if (this.gearalias) {
-          verifier = this.gearalias;
-        } else {
-          verifier = MGREV;
-        }
+        const verifier = this.gearalias ? this.gearalias : MGREV;
 
-        if (!this.scope) this.scope = '';
+        if (!this.scope) {
+          this.scope = '';
+        }
 
         const oauthurl = this.securemode ? `https://${GEARAPIADDRESS}:${GEARAPISECUREPORT}/api/rtoken` :
           `http://${GEARAPIADDRESS}:${GEARAPIPORT}/api/rtoken`;
@@ -345,20 +332,16 @@ class Microgear extends events {
           'HMAC-SHA1'
         );
 
-        oauth.getOAuthRequestToken({}, (err, oauthToken, oauthTokenSecret, results) => {
+        oauth.getOAuthRequestToken({}, (err, oauth_token, oauth_token_secret, results) => {
           if (!err) {
-            this.requesttoken = {
-              token: oauthToken,
-              secret: oauthTokenSecret,
-              verifier,
-            };
+            this.requesttoken = { token: oauth_token, secret: oauth_token_secret, verifier: verifier };
             this.setGearCacheValue('requesttoken', this.requesttoken);
-            if (typeof callback === 'function') {
+            if (typeof (callback) == 'function') {
               callback(1);
             }
-          } else if (typeof callback === 'function') {
-            callback(0);
-          }
+          } else if (typeof (callback) == 'function') {
+            callback(0)
+          };
         });
       }
     }
@@ -375,8 +358,8 @@ class Microgear extends events {
     const mqttclientid = this.accesstoken.token;
 
     if (this.debugmode) {
-      console.log('mqttuser: ' + mqttuser);
-      console.log('mqttpassword: ' + mqttpassword);
+      console.log(`mqttuser     : ${mqttuser}`);
+      console.log(`mqttpassword : ${mqttpassword}`);
     }
 
     this.clientid = mqttclientid;
@@ -391,7 +374,7 @@ class Microgear extends events {
           clientId: mqttclientid,
           protocolVersion: 3,
           keepalive: 10,
-          will: this.options ? this.options.will : {},
+          will: this.options ? this.options.will : {}
         }
       );
     } else {
@@ -404,7 +387,7 @@ class Microgear extends events {
           clientId: mqttclientid,
           protocolVersion: 3,
           keepalive: 10,
-          will: this.options ? this.options.will : {},
+          will: this.options ? this.options.will : {}
         }
       );
     }
@@ -412,19 +395,19 @@ class Microgear extends events {
     if (this.client) {
       /* subscribe for control messages */
       this.client.subscribe(`/&id/${this.clientid}/#`);
-      if (typeof callback === 'function') {
+      if (typeof (callback) == 'function') {
         callback(null);
       }
     } else {
-      if (typeof callback === 'function') {
-        callback('error');
-      }
+      if (typeof (callback) == 'function') {
+        callback('error')
+      };
       return;
     }
 
     this.client.on('error', (err) => {
       switch (err.toString()) {
-        case 'Error: Connection refused: Bad username or password' : // code 4
+        case 'Error: Connection refused: Bad username or password': // code 4
           // token may be nolonger valid, try to request a new one
           this.emit('info', 'invalid token, requesting a new one');
 
@@ -433,23 +416,19 @@ class Microgear extends events {
           this.accesstoken = null;
 
           this.client.end();
-          setTimeout(() => {
+          setTimeout(function () {
             this.initiateConnection(() => {
-              if (this.debugmode) {
-                console.log('auto reconnect');
-              }
+              if (this.debugmode) console.log('auto reconnect');
             });
           }, RETRYCONNECTIONINTERVAL);
           break;
-        case 'Error: Connection refused: Not authorized' : // code 5
+        case 'Error: Connection refused: Not authorized': // code 5
           this.emit('warning', 'microgear unauthorized');
 
           this.client.end();
-          setTimeout(() => {
-            this.initiateConnection(() => {
-              if (this.debugmode) {
-                console.log('auto reconnect');
-              }
+          setTimeout(function () {
+            this.initiateConnection(function () {
+              if (this.debugmode) console.log('auto reconnect');
             });
           }, RETRYCONNECTIONINTERVAL);
           break;
@@ -460,28 +439,35 @@ class Microgear extends events {
       const plen = this.appid.length + 1;
       const rtop = topic.substr(plen, topic.length - plen);
 
-      if (rtop.substr(0, 2) === '/&') {
+      if (rtop.substr(0, 2) == '/&') {
         const p = (`${rtop.substr(1, rtop.length - 1)}/`).indexOf('/');
         const ctop = rtop.substr(2, p);
 
         switch (ctop) {
           case 'present':
-          case 'absent': {
+          case 'absent':
             let pm;
             try {
               pm = JSON.parse(message.toString());
-            } catch (e) {
+            }
+            catch (e) {
               pm = message.toString();
             }
             this.emit(ctop, pm);
             break;
-          }
-          case 'resetendpoint' :
+          case 'resetendpoint':
             if (this.accesstoken && this.accesstoken.endpoint) {
-              this.accesstoken.endpoint = '';
+              this.accesstoken.endpoint = "";
               this.setGearCacheValue('accesstoken', this.accesstoken);
               this.emit('info', 'endpoint reset');
             }
+            break;
+        }
+      } else if (topic.substr(0, 1) == '@') {
+        switch (topic) {
+          case '@info': this.emit('info', message);
+            break;
+          case '@error': this.emit('error', message);
             break;
         }
       } else {
@@ -491,13 +477,13 @@ class Microgear extends events {
 
     this.client.on('close', () => {
       if (this.debugmode) {
-        console.log('client close');
-      }
+        console.log('client close')
+      };
       this.emit('disconnected');
     });
 
     this.client.on('connect', (pack) => {
-      for (let i = 0; i < this.subscriptions.length; i += 1) {
+      for (let i = 0; i < this.subscriptions.length; i++) {
         if (this.debugmode) {
           console.log(`auto subscribe ${this.subscriptions[i]}`);
         }
@@ -511,9 +497,9 @@ class Microgear extends events {
         this.client.subscribe(`/${this.appid}/&absent`);
       }
 
-      if (this.gearalias) {
-        this.setalias(this.gearalias);
-      }
+      // if (this.gearalias) {
+      //   this.setalias(this.gearalias);
+      // }
 
       this.emit('connected');
     });
@@ -524,6 +510,7 @@ class Microgear extends events {
     });
   }
 
+
   /**
    * Initalize a connection to NETPIE
    * @param  {object} callback function
@@ -531,31 +518,25 @@ class Microgear extends events {
   initiateConnection(done) {
     this.gettoken((state) => {
       switch (state) {
-        case 0 :    // No token issue
+        case 0:    // No token issue
           console.log('Error: request token is not issued, please check your key and secret.');
           // throw new Error('Error: request token is not issued, please check your key and secret.');
           return;
-        case 1 :    // Request token issued or prepare to request request token again
+        case 1:    // Request token issued or prepare to request request token again
           setTimeout(() => {
-            if (this.toktime < MAXTOKDELAYTIME) {
-              this.toktime *= 2;
-            }
+            if (this.toktime < MAXTOKDELAYTIME) this.toktime *= 2;
             this.initiateConnection(done);
           }, this.toktime);
           return;
-        case 2 :    // Access token issued
+        case 2:    // Access token issued
           this.initiateConnection(done);
           this.toktime = 1;
           return;
-        case 3 :    // Has access token ready for connecting broker
+        case 3:    // Has access token ready for connecting broker
           this.toktime = 1;
           this.brokerConnect(() => {
-            if (typeof done === 'function') {
-              done();
-            }
+            if (typeof (done) == 'function') done();
           });
-          return;
-        default:
           return;
       }
     });
@@ -568,36 +549,36 @@ class Microgear extends events {
    */
   doConnect(arg1, arg2) {
     let done = null;
-    if (typeof arg1 === 'function') {
+    if (typeof (arg1) == 'function') {
       done = arg1;
     } else {
-      if (typeof arg1 === 'object') {
+      if (typeof (arg1) == 'object') {
         this.options = arg1;
         if (this.options && this.options.will && this.options.will.topic) {
-          this.options.will.topic = `/${this.appid}${this.options.will.topic}`;
+          this.options.will.topic = `/${appid}${this.options.will.topic}`;
         }
       }
-      if (typeof arg2 === 'function') {
+
+      if (typeof (arg2) == 'function') {
         done = arg2;
       }
     }
     this.initiateConnection(done);
-  }
+  };
 
   /**
    * Initiate NetPIE connection
    * @param  {String}   appid appid
    * @param  {Function} done  Callback
    */
-  connect(appid, arg1, arg2) {
-    this.appid = appid;
+  connect(arg1, arg2) {
     this.doConnect(arg1, arg2);
   }
 
   /*
-      * Get instance of the microgear
-      * @return {Object} microgear instance
-      */
+   * Get instance of the microgear
+   * @return {Object} microgear instance
+   */
   getinstance() {
     return this;
   }
@@ -624,14 +605,14 @@ class Microgear extends events {
             this.subscriptions.push(`/${this.appid}${topic}`);
           }
         }
-        if (typeof callback === 'function') {
+        if (typeof (callback) == 'function') {
           if (err) {
             callback(0);
-          } else if (granted && granted[0] &&
-            (granted[0].qos === 0 || granted[0].qos === 1 || granted[0].qos === 2)) {
-            callback(1);
           } else {
-            callback(0);
+            if (granted && granted[0] && (granted[0].qos == 0 || granted[0].qos == 1 || granted[0].qos == 2)) {
+              callback(1);
+            }
+            else callback(0);
           }
         }
       });
@@ -656,7 +637,7 @@ class Microgear extends events {
       if (this.debugmode) {
         console.log(this.subscriptions);
       }
-      if (typeof callback === 'function') {
+      if (typeof (callback) == 'function') {
         callback();
       }
     });
@@ -668,11 +649,13 @@ class Microgear extends events {
    * @param  {String}   gearname Gear name
    * @param  {Function} callback Callback
    */
-  setName(gearname, callback) {
-    if (this.gearname) this.unsubscribe(`/gearname/${this.gearname}`);
-    this.subscribe(`/gearname/${gearname}`, () => {
+  setname(gearname, callback) {
+    if (this.gearname) {
+      this.unsubscribe(`/gearname/${this.gearname}`);
+    }
+    this.subscribe(`/gearname/${this.gearname}`, () => {
       this.gearname = gearname;
-      if (typeof callback === 'function') {
+      if (typeof (callback) == 'function') {
         callback();
       }
     });
@@ -683,10 +666,10 @@ class Microgear extends events {
    * @param  {String}   gearname Gear name
    * @param  {Function} callback Callback
    */
-  setAlias(newalias, callback) {
+  setalias(newalias, callback) {
     this.publish(`/@setalias/${newalias}`, '', {}, () => {
       this.gearalias = newalias;
-      if (typeof callback === 'function') {
+      if (typeof (callback) == 'function') {
         callback();
       }
     });
@@ -696,16 +679,33 @@ class Microgear extends events {
    * Reset name of this instance
    * @param  {Function} callback Callback
    */
-  unsetName(callback) {
+  unsetname(callback) {
     if (this.gearname != null) {
       this.unsubscribe(`/gearname/${this.gearname}`, () => {
         this.gearname = null;
-        if (typeof callback === 'function') {
+        if (typeof (callback) == 'function') {
           callback();
         }
       });
     }
   }
+
+  /**
+   * Write data to feed
+   * @param  {String} feedid FeedID
+   * @param  {Object} datajson Data in a json format
+   * @param  {String} apikey API Key for authorization (optional)
+   */
+  writefeed(feedid, datajson, apikey) {
+    let cmd = `/@writefeed/${feedid}`;
+    if (apikey) {
+      cmd += `/${apikey}`;
+    }
+    if (typeof (datajson) == 'object') {
+      datajson = JSON.stringify(datajson)
+    };
+    this.publish(cmd, datajson);
+  };
 
   /**
    * Publish message
@@ -716,15 +716,12 @@ class Microgear extends events {
   publish(topic, message, param, callback) {
     let options;
 
-    switch (typeof param) {
-      case 'object':
-        options = param;
+    switch (typeof (param)) {
+      case 'object': options = param;
         break;
-      case 'boolean':
-        options = { retain: param };
+      case 'boolean': options = { retain: param };
         break;
-      default:
-        options = {};
+      default: options = {};
     }
     if (this.client.connected) {
       this.client.publish(`/${this.appid}${topic}`, message, options, callback);
@@ -741,24 +738,6 @@ class Microgear extends events {
    */
   chat(gearname, message, options) {
     this.publish(`/gearname/${gearname}`, message, options);
-  }
-
-  /**
-   * call api request on stream data, this method is available only for api tester at the moment
-   * @param  {String}   stream The name of stream
-   * @param  {String}   filter  Query condition
-   */
-  readstream(stream, filter) {
-    this.publish(`/@readstream/${stream}`, `{"filter":"${filter}"}`);
-  }
-
-  /**
-   * call api request to record stream data, this method is available only for api tester at the moment
-   * @param  {String}   stream The name of stream
-   * @param  {String}   data  Stream data
-   */
-  writestream(stream, data) {
-    this.publish(`/@writestream/${stream}`, `{"data":${data}}`);
   }
 
   /**
@@ -782,7 +761,9 @@ class Microgear extends events {
    * Revoke and remove token from cache
    * @param  {Function} callback Callabck
    */
-  resetToken(callback) {
+  resettoken(callback) {
+    const httpclient = this.securemode ? https : http;
+
     this.accesstoken = this.getGearCacheValue('accesstoken');
     if (this.accesstoken) {
       let opt;
@@ -793,18 +774,19 @@ class Microgear extends events {
           host: GEARAPIADDRESS,
           path: `/api/revoke/${this.accesstoken.token}/${revokecode}`,
           port: GEARAPISECUREPORT,
-          method: 'GET',
+          method: 'GET'
         };
-      } else {
+      }
+      else {
         opt = {
           host: GEARAPIADDRESS,
           path: `/api/revoke/${this.accesstoken.token}/${revokecode}`,
           port: GEARAPIPORT,
-          method: 'GET',
+          method: 'GET'
         };
       }
 
-      const rq = this.httpclient.request(opt, (res) => {
+      const rq = httpclient.request(opt, (res) => {
         let result = '';
         res.on('data', (chunk) => {
           result += chunk;
@@ -812,25 +794,30 @@ class Microgear extends events {
         res.on('end', () => {
           if (result !== 'FAILED') {
             this.clearGearCache();
-            if (typeof callback === 'function') {
+            if (typeof (callback) == 'function') {
               callback(null);
             }
-          } else if (typeof callback === 'function') {
-            callback(result);
-          }
+          } else if (typeof (callback) == 'function') {
+            callback(result)
+          };
         });
       });
       rq.on('error', (e) => {
         this.emit('error', `Reset token error : ${e.message}`);
-        if (typeof callback === 'function') {
+        if (typeof (callback) == 'function') {
           callback(e.message);
         }
       });
       rq.end();
-    } else if (typeof callback === 'function') {
-      callback(null);
+    } else {
+      if (typeof (callback) == 'function') {
+        callback(null);
+      }
     }
   }
+
+
+
 }
 
 export default Microgear;

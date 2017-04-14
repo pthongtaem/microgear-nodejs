@@ -22,9 +22,10 @@ const APPID  = <APPID>;
 const KEY    = <APPKEY>;
 const SECRET = <APPSECRET>;
 
-var microgear = MicroGear.create({
+var microgear = MicroGear.default({
     key : KEY,
     secret : SECRET
+    appid: APPID
 });
 
 microgear.on('connected', function() {
@@ -43,41 +44,43 @@ microgear.on('closed', function() {
     console.log('Closed...');
 });
 
-microgear.connect(APPID);
+microgear.connect();
 ```
 
 ## Library Usage
 
-**Microgear.create (*gearkey*, *gearsecret*, *scope*)**
+**Microgear (*config*)**
 
 **arguments**
 * *config* is a json object with the following attributes:
   * *gearkey* `string` - is used as a microgear identity.
   * *gearsecret* `string` comes in a pair with gearkey. The secret is used for authentication and integrity.
-  * *alias* `string` - specifies the device alias.  
+  * *appid* `string` - a group of application that microgear will connect to.
+  * *alias* `string` - specifies the device alias.
 
 ```js
-var microgear = MicroGear.create({
+var microgear = MicroGear({
     key : "sXfqDcXHzbFXiLk",
     secret : "DNonzg2ivwS8ceksykGntrfQjxbL98",
+    appid: "netpie-es2015",
     alias : "myplant"
 });
 ```
 ---
 ## microgear
-**void microgear.connect (*appid*, *callback*)**
+**void microgear.connect (*callback*)**
 
 **arguments**
-* *appid* `string` - a group of application that microgear will connect to.
+* *callback* `function` - this function will be called when connected.
 ```js
-microgear.connect("happyfarm");
+microgear.connect();
 ```
 ---
 **void microgear.setAlias (*gearalias*)**
 microgear can set its own alias, which to be used for others make a function call chat(). The alias will appear on the key management portal of netpie.io .
 
 **arguments**
-* *alias* `string` - name of this microgear.   
+* *alias* `string` - name of this microgear.
 
 ```js
 microgear.setAlias("plant");
@@ -124,6 +127,18 @@ microgear.subscribe("/outdoor/temp");
 
 ```js
 microgear.unsubscribe("/outdoor/temp");
+```
+---
+**void microgear.writeFeed (*feedid*, *datajson* [, *apikey*])**
+write time series data to a feed storage
+
+**arguments**
+* *feedid* `string` - name of the feed
+* *datajson* `string` - data in json format
+* *apikey* `string` - apikey for authorization. If apikey is not specified, you will need to allow the AppID to access feed and then the default apikey will be assigned automatically.
+
+```js
+microgear.writeFeed("homesensor",{temp:25.7,humid:62.8,light:8.5});
 ```
 ---
 

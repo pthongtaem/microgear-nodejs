@@ -3,3 +3,5 @@ lib
 *.log
 test.js
 DS_Store
+microgear-*.cache
+lib
