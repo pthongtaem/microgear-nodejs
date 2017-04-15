@@ -14,19 +14,19 @@ var microgear = new MicroGear.default({
   alias: ALIAS,
 });
 
-microgear.on('connected', function () {
+microgear.on('connected', function() {
   console.log('Connected...');
-  microgear.setalias("mygear");
-  setInterval(function () {
+  microgear.setalias('mygear');
+  setInterval(function() {
     microgear.chat('mygear', 'Hello world.');
   }, 1000);
 });
 
-microgear.on('message', function (topic, body) {
+microgear.on('message', function(topic, body) {
   console.log('incoming : ' + topic + ' : ' + body);
 });
 
-microgear.on('closed', function () {
+microgear.on('closed', function() {
   console.log('Closed...');
 });
 

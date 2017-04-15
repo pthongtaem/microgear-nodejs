@@ -7,17 +7,17 @@ var mg1 = new MicroGear.default({
   key: '',
   secret: '',
   alias: 'mg1',
-  appid: ''
+  appid: '',
 });
 
-mg1.on('connected', function () {
+mg1.on('connected', function() {
   console.log('mg1 connected...');
-  setInterval(function () {
+  setInterval(function() {
     mg1.chat('mg2', 'Hello from mg1.');
   }, 5000);
 });
 
-mg1.on('message', function (topic, msg) {
+mg1.on('message', function(topic, msg) {
   console.log('mg1 receives :' + msg);
 });
 
@@ -28,17 +28,17 @@ var mg2 = new MicroGear.default({
   key: '',
   secret: '',
   alias: 'mg2',
-  appid: ''
+  appid: '',
 });
 
-mg2.on('connected', function () {
+mg2.on('connected', function() {
   console.log('mg2 connected...');
-  setInterval(function () {
+  setInterval(function() {
     mg1.chat('mg1', 'Hello from mg2.');
   }, 5000);
 });
 
-mg2.on('message', function (topic, msg) {
+mg2.on('message', function(topic, msg) {
   console.log('mg2 receives :' + msg);
 });
 
